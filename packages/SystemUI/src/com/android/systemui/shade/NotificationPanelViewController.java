@@ -2498,6 +2498,9 @@ public final class NotificationPanelViewController implements ShadeSurface, Dump
             alpha *= mClockPositionResult.clockAlpha;
         }
         mNotificationStackScrollLayoutController.setAlpha(alpha);
+        if (mBarState != StatusBarState.KEYGUARD && !isFullyCollapsed() && !isPanelVisibleBecauseOfHeadsUp()) {
+            mCentralSurfaces.updateDismissAllVisibility(true);
+        }
     }
 
     private float getFadeoutAlpha() {
@@ -2954,7 +2957,7 @@ public final class NotificationPanelViewController implements ShadeSurface, Dump
     }
 
     private boolean isPanelVisibleBecauseOfHeadsUp() {
-        return (mHeadsUpManager.hasPinnedHeadsUp() || mHeadsUpAnimatingAway)
+        return mHeadsUpManager != null && (mHeadsUpManager.hasPinnedHeadsUp() || mHeadsUpAnimatingAway)
                 && mBarState == StatusBarState.SHADE;
     }
 
@@ -3836,7 +3839,7 @@ public final class NotificationPanelViewController implements ShadeSurface, Dump
         return mExpandedHeight;
     }
 
-    float getExpandedFraction() {
+    public float getExpandedFraction() {
         return mExpandedFraction;
     }
 

@@ -36,6 +36,7 @@ import static com.android.systemui.Dependency.TIME_TICK_HANDLER_NAME;
 import static com.android.systemui.charging.WirelessChargingAnimation.UNKNOWN_BATTERY_LEVEL;
 import static com.android.systemui.statusbar.NotificationLockscreenUserManager.PERMISSION_SELF;
 import static com.android.systemui.statusbar.StatusBarState.SHADE;
+import static com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.ROWS_ALL;
 import static com.android.systemui.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT;
 import static com.android.systemui.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT_TRANSPARENT;
 import static com.android.systemui.statusbar.phone.BarTransitions.MODE_OPAQUE;
@@ -110,6 +111,7 @@ import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.DateTimeView;
+import android.widget.ImageButton;
 import android.window.BackEvent;
 import android.window.OnBackAnimationCallback;
 import android.window.OnBackInvokedCallback;
@@ -305,6 +307,8 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
             "lineagesystem:" + LineageSettings.System.STATUS_BAR_BRIGHTNESS_CONTROL;
     private static final String QS_TRANSPARENCY =
             "system:" + Settings.System.QS_TRANSPARENCY;
+    private static final String NOTIFICATION_MATERIAL_DISMISS =
+            "system:" + Settings.System.NOTIFICATION_MATERIAL_DISMISS;
 
     private static final String BANNER_ACTION_CANCEL =
             "com.android.systemui.statusbar.banner_action_cancel";
@@ -615,6 +619,9 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
     private final ScreenPinningRequest mScreenPinningRequest;
 
     private final MetricsLogger mMetricsLogger;
+
+    private ImageButton mDismissAllButton;
+    private boolean mShowDimissButton;
 
     // ensure quick settings is disabled until the current user makes it through the setup wizard
     @VisibleForTesting
@@ -1030,6 +1037,7 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
         mTunerService.addTunable(this, FORCE_SHOW_NAVBAR);
         mTunerService.addTunable(this, STATUS_BAR_BRIGHTNESS_CONTROL);
         mTunerService.addTunable(this, QS_TRANSPARENCY);
+        mTunerService.addTunable(this, NOTIFICATION_MATERIAL_DISMISS);
 
         mDisplay = mContext.getDisplay();
         mDisplayId = mDisplay.getDisplayId();
@@ -1320,6 +1328,8 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
         inflateStatusBarWindow();
         mNotificationShadeWindowView.setOnTouchListener(getStatusBarWindowTouchListener());
         mWallpaperController.setRootView(mNotificationShadeWindowView);
+        mDismissAllButton = mNotificationShadeWindowView.findViewById(R.id.clear_notifications);
+        updateDismissAllButton();
 
         mMinimumBacklight = mPowerManager.getBrightnessConstraint(
                 PowerManager.BRIGHTNESS_CONSTRAINT_TYPE_MINIMUM);
@@ -1637,6 +1647,38 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         filter.addAction(lineageos.content.Intent.ACTION_SCREEN_CAMERA_GESTURE);
         mBroadcastDispatcher.registerReceiver(mBroadcastReceiver, filter, null, UserHandle.ALL);
+    }
+
+    @Override
+    public void updateDismissAllVisibility(boolean visible) {
+        if (mDismissAllButton == null) return;
+        if (!mShowDimissButton || !mStackScrollerController.hasActiveClearableNotifications(ROWS_ALL)
+                     || !visible || mState == StatusBarState.KEYGUARD || mQSPanelController.isExpanded()) {
+            mDismissAllButton.setAlpha(0);
+            mDismissAllButton.getBackground().setAlpha(0);
+            mDismissAllButton.setVisibility(View.GONE);
+        } else {
+            updateDismissAllButton();
+            int alpha = Math.round(
+                mCentralSurfacesComponent.getNotificationPanelViewController().getExpandedFraction() * 255.0f);
+            mDismissAllButton.setAlpha(alpha);
+            mDismissAllButton.getBackground().setAlpha(alpha);
+            mDismissAllButton.setVisibility(View.VISIBLE);
+        }
+    }
+
+    @Override
+    public void updateDismissAllButton() {
+        if (mDismissAllButton == null) return;
+        mDismissAllButton.setImageResource(R.drawable.dismiss_all_icon);
+        mDismissAllButton.setElevation(mContext.getResources().getDimension(R.dimen.dismiss_all_button_elevation));
+        mDismissAllButton.setColorFilter(mContext.getColor(R.color.notif_pill_text));
+        mDismissAllButton.setBackground(mContext.getTheme().getDrawable(R.drawable.dismiss_all_background));
+    }
+
+    @Override
+    public View getDismissAllButton() {
+        return mDismissAllButton;
     }
 
     protected QS createDefaultQSFragment() {
@@ -3956,6 +3998,10 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
             case QS_TRANSPARENCY:
                 mScrimController.setCustomScrimAlpha(
                         TunerService.parseInteger(newValue, 100));
+                break;
+            case NOTIFICATION_MATERIAL_DISMISS:
+                mShowDimissButton =
+                        TunerService.parseIntegerSwitch(newValue, false);
                 break;
             default:
                 break;
