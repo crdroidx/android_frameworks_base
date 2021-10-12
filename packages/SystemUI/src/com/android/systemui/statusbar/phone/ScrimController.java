@@ -212,6 +212,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private final StatusBarKeyguardViewManager mStatusBarKeyguardViewManager;
 
     private GradientColors mColors;
+    private GradientColors mBehindColors;
     private boolean mNeedsDrawableColorUpdate;
 
     private float mAdditionalScrimBehindAlphaKeyguard = 0f;
@@ -346,6 +347,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             }
         });
         mColors = new GradientColors();
+        mBehindColors = new GradientColors();
         mPrimaryBouncerToGoneTransitionViewModel = primaryBouncerToGoneTransitionViewModel;
         mKeyguardTransitionInteractor = keyguardTransitionInteractor;
         mMainDispatcher = mainDispatcher;
@@ -1122,7 +1124,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                     && !mBlankScreen;
 
             mScrimInFront.setColors(mColors, animateScrimInFront);
-            mScrimBehind.setColors(mColors, animateBehindScrim);
+            mScrimBehind.setColors(mBehindColors, animateBehindScrim);
             mNotificationsScrim.setColors(mColors, animateScrimNotifications);
 
             dispatchBackScrimState(mScrimBehind.getViewAlpha());
@@ -1497,17 +1499,25 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         if (mScrimBehind == null) return;
         int background = Utils.getColorAttr(mScrimBehind.getContext(),
                 android.R.attr.colorBackgroundFloating).getDefaultColor();
+        int surfaceBackground = Utils.getColorAttr(mScrimBehind.getContext(),
+                com.android.internal.R.attr.colorSurfaceHeader).getDefaultColor();
         int accent = Utils.getColorAccent(mScrimBehind.getContext()).getDefaultColor();
         mColors.setMainColor(background);
         mColors.setSecondaryColor(accent);
+        mBehindColors.setMainColor(surfaceBackground);
+        mBehindColors.setSecondaryColor(accent);
         if (mUseNewLightBarLogic) {
             final boolean isBackgroundLight = !ContrastColorUtil.isColorDark(background);
+            final boolean isSurfaceBackgroundLight = !ContrastColorUtil.isColorDark(surfaceBackground);
             mColors.setSupportsDarkText(isBackgroundLight);
+            mBehindColors.setSupportsDarkText(isSurfaceBackgroundLight);
         } else {
             // NOTE: This was totally backward, but LightBarController was flipping it back.
             // There may be other consumers of this which would struggle though
             mColors.setSupportsDarkText(
                     ColorUtils.calculateContrast(mColors.getMainColor(), Color.WHITE) > 4.5);
+            mBehindColors.setSupportsDarkText(
+                    ColorUtils.calculateContrast(mBehindColors.getMainColor(), Color.WHITE) > 4.5);
         }
 
         int surface = Utils.getColorAttr(mScrimBehind.getContext(),
