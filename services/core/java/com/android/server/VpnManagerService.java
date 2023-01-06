@@ -891,6 +891,8 @@ public class VpnManagerService extends IVpnManager.Stub {
             }
 
             vpn.refreshPlatformVpnAppExclusionList();
+            vpn.setAlwaysOnPackage(vpn.getAlwaysOnPackage(), vpn.getLockdown(),
+                    vpn.getLockdownAllowlist());
         }
     }
 
@@ -906,6 +908,8 @@ public class VpnManagerService extends IVpnManager.Stub {
 
             if (vpn != null && !isReplacing) {
                 vpn.refreshPlatformVpnAppExclusionList();
+                vpn.setAlwaysOnPackage(vpn.getAlwaysOnPackage(), vpn.getLockdown(),
+                        vpn.getLockdownAllowlist());
             }
         }
     }
