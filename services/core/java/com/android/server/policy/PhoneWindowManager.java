@@ -633,6 +633,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     // Tracks user-customisable behavior for certain key events
     private Action mBackLongPressAction;
+    private Action mBackDoubleTapAction;
     private Action mHomeLongPressAction;
     private Action mHomeDoubleTapAction;
     private Action mMenuPressAction;
@@ -995,6 +996,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
                     LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(LineageSettings.System.getUriFor(
+                    LineageSettings.System.KEY_BACK_DOUBLE_TAP_ACTION), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
                     LineageSettings.System.HOME_WAKE_SCREEN), false, this,
@@ -1560,6 +1564,19 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, false,
                 "Back - Long Press");
         performKeyAction(mBackLongPressAction, event);
+    }
+
+    private void backDoubleTap() {
+        mBackKeyHandled = true;
+
+        long now = SystemClock.uptimeMillis();
+        KeyEvent event = new KeyEvent(now, now, KeyEvent.ACTION_DOWN,
+                KEYCODE_BACK, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+                KeyEvent.FLAG_FROM_SYSTEM, InputDevice.SOURCE_KEYBOARD);
+
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, false,
+                "Back - Double Tap");
+        performKeyAction(mBackDoubleTapAction, event);
     }
 
     private void accessibilityShortcutActivated() {
@@ -2846,7 +2863,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
         @Override
         int getMaxMultiPressCount() {
-            return 1;
+            return 2;
         }
 
         @Override
@@ -2857,6 +2874,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         @Override
         void onLongPress(long downTime) {
             backLongPress();
+        }
+
+        @Override
+        void onMultiPress(long downTime, int count) {
+            backDoubleTap();
         }
     }
 
@@ -2938,9 +2960,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mBackLongPressAction = Action.NOTHING;
         }
 
+        mBackDoubleTapAction = Action.fromIntSafe(res.getInteger(
+                org.lineageos.platform.internal.R.integer.config_doubleTapOnBackBehavior));
+        if (mBackDoubleTapAction.ordinal() > Action.SLEEP.ordinal()) {
+            mBackDoubleTapAction = Action.NOTHING;
+        }
+
         mBackLongPressAction = Action.fromSettings(resolver,
                 LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION,
                 mBackLongPressAction);
+        mBackDoubleTapAction = Action.fromSettings(resolver,
+                LineageSettings.System.KEY_BACK_DOUBLE_TAP_ACTION,
+                mBackDoubleTapAction);
 
         mHomeLongPressAction = Action.fromIntSafe(res.getInteger(
                 org.lineageos.platform.internal.R.integer.config_longPressOnHomeBehavior));
